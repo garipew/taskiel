@@ -1,27 +1,22 @@
+#include "list.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-
-char* nomear_lista(char** listname, int argc, char* argv[]){
-
-	*listname = ".list";
-	if(argc >= 2){
-		*listname = (argv)[1];
-	}
-
-	return *listname;
-	
-}
+#include <curses.h>
 
 
 int main(int argc, char* argv[]){
 	
+	initscr();
+
+	Lista* lista;
 	char* listname;
-	printf("%s\n", nomear_lista(&listname,argc,argv));
+
+	lista = carregar_lista(nomear_lista(&listname,argc,argv));
+	refresh();
 	
-	FILE* list = fopen(listname, "w+");
-	fclose(list);
+	editar_lista(lista);
+	fechar_lista(lista);
+	endwin();
 
 	return 0;
 
