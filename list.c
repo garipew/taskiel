@@ -228,7 +228,7 @@ int selecionar_tarefa(Lista* list){
 			break;
 		}
 		opcao = mover_cursor(acao, opcao, list->tamanho);
-		opcao =	escrever_tarefas(list, opcao);
+		escrever_tarefas(list, opcao);
 	} while(acao != '\n');
 	echo();
 	refresh();
@@ -237,7 +237,39 @@ int selecionar_tarefa(Lista* list){
 }
 
 
-int escrever_tarefas(Lista* list, int selected){
+void escrever_tarefa(Lista* list, int number){
+
+	char* line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int current_task = -1;
+	int details = 0;
+
+	read = getline(&line, &len, list->file); // lê o titulo
+	while((read = getline(&line, &len, list->file)) != -1){
+		if(line[0] == '\t' && line[1] == '['){
+			current_task++;
+			if(current_task > number){
+				break;
+			}
+		}
+		if(current_task == number){
+			if(details == 0){
+				printw(line);
+				details++;
+				continue;
+			}
+			line[0] = details + '0';
+			line[1] = ' ';
+			printw("\t\t%s", line);
+			details++;
+		}
+	}
+	rewind(list->file);
+}
+
+
+void escrever_tarefas(Lista* list, int selected){
 
 	char* line = NULL;
 	size_t len = 0;
@@ -263,7 +295,6 @@ int escrever_tarefas(Lista* list, int selected){
 		selected = current_task;
 	}
 	rewind(list->file);
-	return selected;
 }
 
 
@@ -281,8 +312,8 @@ void adicionar_detalhe(Lista* list){
 	ssize_t read;
 	int current_task = -1;
 	
-	char detail[200] = "↳";
-	char detail_str[199];
+	char detail[200] = "* ";
+	char detail_str[198];
 
 	int written = 0;
 	
@@ -348,7 +379,7 @@ void editar_titulo(Lista* list, int opcao){
 }
 
 
-void editar_descricao(Lista* list, int opcao){
+void editar_detalhe(Lista* list, int opcao){
 
 	FILE* out = fopen("out.swp", "w");
 
@@ -358,14 +389,14 @@ void editar_descricao(Lista* list, int opcao){
 	int current_task = -1;
 	int current_desc = -2;
 
-	char detail[200] = "↳";
-	char detail_str[199];
+	char detail[200] = "* ";
+	char detail_str[198];
 	char desc[4];
 
 	int descricao = 0;
 	int written = 0;
 
-	escrever_tarefas(list, -1);
+	escrever_tarefa(list, opcao);
 	printw("Qual o numero da descricao que deseja alterar? ");
 	getstr(desc);
 	for(int i=0;i<3;i++){
@@ -427,7 +458,7 @@ void editar_tarefa(Lista* list){
 		}
 		if(acao == 'd'){
 			echo();
-			editar_descricao(list, opcao);
+			editar_detalhe(list, opcao);
 			break;
 		}
 	} while(acao != 'q');
