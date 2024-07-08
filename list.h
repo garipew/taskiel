@@ -19,6 +19,8 @@ int realizar_acao(Lista*, char);
 void listar_acoes();
 void criar_tarefa(Lista*);
 void remover_tarefa(Lista*);
+int selecionar_tarefa(Lista*);
 int escrever_tarefas(Lista*, int);
 int mover_cursor(char, int, int);
 void fechar_lista(Lista*);
+void adicionar_detalhe(Lista*);

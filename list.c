@@ -91,6 +91,9 @@ int realizar_acao(Lista* list, char action){
 		case 'r':
 			remover_tarefa(list);
 			break;
+		case 'a':
+			adicionar_detalhe(list);
+			break;
 		default:
 			listar_acoes();
 	}
@@ -104,6 +107,7 @@ void listar_acoes(){
 	printw("[Q] Fechar a lista.\n");
 	printw("[c] Criar nova tarefa.\n");
 	printw("[r] Remover tarefa.\n");
+	printw("[a] Adicionar detalhe.\n");
 	printw("[q] Retornar à edição.\n");
 	refresh();
 	do{
@@ -111,6 +115,27 @@ void listar_acoes(){
 		close = getch();	
 	}while(close != 'q');
 	echo();
+}
+
+
+int mover_cursor(char acao, int opcao, int tamanho){
+	if(acao == 'k'){
+		return (opcao == 0 ? 0 : opcao - 1);
+	}
+	if(acao == 'j'){
+		return (opcao == tamanho - 1 ? opcao : opcao + 1);
+	}
+
+	return opcao;
+
+}
+
+
+void fechar_lista(Lista* list){
+
+	fclose(list->file);
+	free(list);
+
 }
 
 
@@ -140,19 +165,25 @@ void criar_tarefa(Lista* list){
 }
 
 
-void remover(Lista* list, int opcao){
+void remover_tarefa(Lista* list){
 	
+	int opcao = selecionar_tarefa(list);
+	if(opcao == -1){
+		return;
+	}
 	FILE* out = fopen("out.swp", "w");
 	char* line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	
 	int tarefa = -1;
+	
 	getline(&line, &len, list->file);	
 	fprintf(out, "%s %d\n", list->nome, --list->tamanho);
 
 	while((read = getline(&line, &len, list->file)) != -1){
-		tarefa++;
+		if(line[0] == '\t' && line[1] == '['){
+			tarefa++;
+		}
 		if(tarefa == opcao){
 			continue;
 		}
@@ -168,12 +199,20 @@ void remover(Lista* list, int opcao){
 }
 
 
-void remover_tarefa(Lista* list){
+int selecionar_tarefa(Lista* list){
 	
 	char acao;
 	int opcao = 0;
+	char close_message;
 
 	clear();
+	if(list->tamanho == 0){
+		printw("Não há tarefas disponíveis, experimente criar uma.\n");
+		refresh();
+		do{ close_message = getch(); } while(close_message != 'q');
+		return -1;
+	}
+
 	printw("Selecione a tarefa que deseja remover e pressione [ENTER].\n");
 	escrever_tarefas(list, opcao);
 	noecho();
@@ -189,10 +228,8 @@ void remover_tarefa(Lista* list){
 	} while(acao != '\n');
 	echo();
 	refresh();
-
-	if(acao == '\n'){
-		remover(list, opcao);
-	}
+	
+	return (acao == '\n' ? opcao : -1);
 }
 
 
@@ -201,43 +238,70 @@ int escrever_tarefas(Lista* list, int selected){
 	char* line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	int current_line = 0;
+	int current_task = -1;
+	int written = 0;
 	int x,y;
 
 	read = getline(&line, &len, list->file); // lê o titulo
 	while((read = getline(&line, &len, list->file)) != -1){
-		printw(line);	
-		if(current_line == selected){
-			getyx(stdscr, y, x);
-			mvaddch(y-1, 73, '<');
-			addch('\n');
+		if(line[0] == '\t' && line[1] == '['){
+			current_task++;
 		}
-		current_line++;
+		printw(line);	
+		if((current_task == selected) && !written){
+			getyx(stdscr, y, x);
+			mvaddch(y-1, 65, '<');
+			addch('\n');
+			written = 1;
+		}
 	}
-	if(selected > current_line){
-		selected = current_line;
+	if(selected > current_task){
+		selected = current_task;
 	}
 	rewind(list->file);
 	return selected;
 }
 
 
-int mover_cursor(char acao, int opcao, int tamanho){
-	if(acao == 'k'){
-		return (opcao == 0 ? 0 : opcao - 1);
+void adicionar_detalhe(Lista* list){
+	
+	int opcao = selecionar_tarefa(list);
+	if(opcao == -1){
+		return;
 	}
-	if(acao == 'j'){
-		return (opcao == tamanho - 1 ? opcao : opcao + 1);
+	
+	FILE* out = fopen("out.swp", "w");
+
+	char* line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int current_task = -1;
+	
+	char detail[200] = "↳";
+	char detail_str[199];
+
+	int written = 0;
+	
+	clear();
+	printw("Digite o detalhe para a tarefa:\n");
+	refresh();
+	getstr(detail_str);
+	strcat(detail, detail_str);
+	while((read = getline(&line, &len, list->file)) != -1){
+		if(line[0] == '\t' && line[1] == '['){
+			current_task++;
+		}
+		fprintf(out, "%s", line);
+		if(current_task == opcao && !written){
+			fprintf(out, "\t\t%s\n", detail);
+			written = 1;
+		}
 	}
-
-	return opcao;
-
-}
-
-
-void fechar_lista(Lista* list){
-
+	
 	fclose(list->file);
-	free(list);
+	fclose(out);
+	remove(list->nome);
+	rename("out.swp", list->nome);
+	list->file = fopen(list->nome, "r+");
 
 }
