@@ -24,3 +24,4 @@ int escrever_tarefas(Lista*, int);
 int mover_cursor(char, int, int);
 void fechar_lista(Lista*);
 void adicionar_detalhe(Lista*);
+void editar_tarefa(Lista*);

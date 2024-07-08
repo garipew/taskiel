@@ -94,6 +94,9 @@ int realizar_acao(Lista* list, char action){
 		case 'a':
 			adicionar_detalhe(list);
 			break;
+		case 'e':
+			editar_tarefa(list);
+			break;
 		default:
 			listar_acoes();
 	}
@@ -108,6 +111,7 @@ void listar_acoes(){
 	printw("[c] Criar nova tarefa.\n");
 	printw("[r] Remover tarefa.\n");
 	printw("[a] Adicionar detalhe.\n");
+	printw("[e] Editar tarefa.\n");
 	printw("[q] Retornar à edição.\n");
 	refresh();
 	do{
@@ -213,13 +217,13 @@ int selecionar_tarefa(Lista* list){
 		return -1;
 	}
 
-	printw("Selecione a tarefa que deseja remover e pressione [ENTER].\n");
+	printw("Selecione a tarefa e pressione [ENTER].\n");
 	escrever_tarefas(list, opcao);
 	noecho();
 	do{	
 		acao = getch();
 		clear();
-		printw("Selecione a tarefa que deseja remover e pressione [ENTER].\n");
+		printw("Selecione a tarefa e pressione [ENTER].\n");
 		if(acao == 'q'){
 			break;
 		}
@@ -305,3 +309,130 @@ void adicionar_detalhe(Lista* list){
 	list->file = fopen(list->nome, "r+");
 
 }
+
+
+void editar_titulo(Lista* list, int opcao){
+
+	FILE* out = fopen("out.swp", "w");
+
+	char* line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int current_task = -1;
+
+	char title[70] = "[=>] ";
+	char title_str[64];
+	int written = 0;
+
+	printw("Digite o novo titulo para tarefa:\n");
+	refresh();
+	getstr(title_str);
+	strcat(title, title_str);
+	while((read = getline(&line, &len, list->file)) != -1){
+		if(line[0] == '\t' && line[1] == '['){
+			current_task++;
+		}
+		if(current_task == opcao && !written){
+			fprintf(out, "\t%s\n", title);
+			written = 1;
+			continue;
+		}
+		fprintf(out, "%s", line);
+	}
+	
+	fclose(list->file);
+	fclose(out);
+	remove(list->nome);
+	rename("out.swp", list->nome);
+	list->file = fopen(list->nome, "r+");
+}
+
+
+void editar_descricao(Lista* list, int opcao){
+
+	FILE* out = fopen("out.swp", "w");
+
+	char* line = NULL;
+	size_t len = 0;
+	ssize_t read;
+	int current_task = -1;
+	int current_desc = -2;
+
+	char detail[200] = "↳";
+	char detail_str[199];
+	char desc[4];
+
+	int descricao = 0;
+	int written = 0;
+
+	escrever_tarefas(list, -1);
+	printw("Qual o numero da descricao que deseja alterar? ");
+	getstr(desc);
+	for(int i=0;i<3;i++){
+		if(desc[i] != '\0'){
+			descricao*=10;
+			descricao += desc[i] - '0';
+		}
+	}
+	descricao--;
+	printw("Digite a nova descricao para a tarefa:\n");
+	refresh();
+	getstr(detail_str);
+	strcat(detail, detail_str);
+	while((read = getline(&line, &len, list->file)) != -1){
+		if(line[0] == '\t' && line[1] == '['){
+			current_task++;
+			current_desc = -2;
+		}
+
+		current_desc++;
+
+		if(current_desc == descricao && current_task == opcao && !written){
+			fprintf(out, "\t\t%s\n", detail);
+			written = 1;
+			continue;
+		}
+		fprintf(out, "%s", line);
+		
+	}
+	
+	fclose(list->file);
+	fclose(out);
+	remove(list->nome);
+	rename("out.swp", list->nome);
+	list->file = fopen(list->nome, "r+");
+}
+
+
+void editar_tarefa(Lista* list){
+
+	int opcao = selecionar_tarefa(list);
+	if(opcao == -1){
+		return;
+	}
+	
+	char acao;
+	clear();
+	printw("Selecione o que deseja editar:\n");
+	printw("[t] Editar titulo\n[d] Editar descricao\n");
+	refresh();
+	noecho();
+	
+	do{
+		acao = getch();
+		if(acao == 't'){
+			echo();
+			editar_titulo(list, opcao); 
+			break;
+		}
+		if(acao == 'd'){
+			echo();
+			editar_descricao(list, opcao);
+			break;
+		}
+	} while(acao != 'q');
+	echo();
+
+}
+
+
