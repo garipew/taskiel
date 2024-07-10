@@ -14,7 +14,7 @@ Lista* carregar_lista(char* listname){
 	char titulo[64];
 	int tamanho;
 
-	fscanf(lista->file, "%s %d", &titulo, &tamanho); 
+	fscanf(lista->file, "%s %d", titulo, &tamanho); 
 	lista->tamanho = tamanho;
 	rewind(lista->file);
 	return lista;
@@ -191,7 +191,7 @@ void remover_tarefa(Lista* list){
 		if(tarefa == opcao){
 			continue;
 		}
-		fprintf(out, line);
+		fprintf(out, "%s", line);
 	}
 
 	fclose(list->file);
@@ -255,7 +255,7 @@ void escrever_tarefa(Lista* list, int number){
 		}
 		if(current_task == number){
 			if(details == 0){
-				printw(line);
+				printw("%s", line);
 				details++;
 				continue;
 			}
@@ -283,7 +283,7 @@ void escrever_tarefas(Lista* list, int selected){
 		if(line[0] == '\t' && line[1] == '['){
 			current_task++;
 		}
-		printw(line);	
+		printw("%s", line);	
 		if((current_task == selected) && !written){
 			getyx(stdscr, y, x);
 			mvaddch(y-1, 65, '<');
