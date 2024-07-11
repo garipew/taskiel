@@ -4,6 +4,7 @@
 typedef struct lista{
 	
 	FILE* file;
+	int tasks;
 	int tamanho;
 	char nome[64];
 
@@ -18,10 +19,11 @@ void editar_lista(Lista*);
 int realizar_acao(Lista*, char);
 void listar_acoes();
 void criar_tarefa(Lista*);
-void remover_tarefa(Lista*);
+void remover_item(Lista*);
 int selecionar_tarefa(Lista*);
-void escrever_tarefas(Lista*, int);
+void escrever_tarefas(Lista*, int, int);
 int mover_cursor(char, int, int);
 void fechar_lista(Lista*);
 void adicionar_detalhe(Lista*);
 void editar_tarefa(Lista*);
+int selecionar_item(Lista*);

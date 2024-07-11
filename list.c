@@ -13,9 +13,11 @@ Lista* carregar_lista(char* listname){
 	
 	char titulo[64];
 	int tamanho;
+	int tasks;
 
-	fscanf(lista->file, "%s %d", titulo, &tamanho); 
+	fscanf(lista->file, "%s %d %d", titulo, &tasks, &tamanho); 
 	lista->tamanho = tamanho;
+	lista->tasks = tasks;
 	rewind(lista->file);
 	return lista;
 }
@@ -53,7 +55,8 @@ FILE* abrir_lista(char* listname){
 	if(list == NULL){
 		printw("Creating %s...\n", listname);
 		list = fopen(listname, "w+");
-		fprintf(list, "%s %d\n", listname, 0);
+		fprintf(list, "%s %d %d\n", listname, 0, 0);
+		rewind(list);
 	}
 
 	return list;
@@ -89,7 +92,7 @@ int realizar_acao(Lista* list, char action){
 			criar_tarefa(list);
 			break;
 		case 'r':
-			remover_tarefa(list);
+			remover_item(list);
 			break;
 		case 'a':
 			adicionar_detalhe(list);
@@ -162,16 +165,39 @@ void criar_tarefa(Lista* list){
 	rewind(list->file);
 	clear();
 
+	list->tasks++;
 	list->tamanho++;
-	fprintf(list->file, "%s %d\n", list->nome, list->tamanho); 
+	fprintf(list->file, "%s %d %d\n", list->nome, list->tasks, list->tamanho); 
 	rewind(list->file);
 
 }
 
 
-void remover_tarefa(Lista* list){
+void append_on_file(char str[], char file_name[]){
+
+	FILE* appended = fopen("append.swp", "w");
+	FILE* append = fopen(file_name, "r");
+
+	char* line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	fprintf(appended, "%s\n", str);
+
+	while((read = getline(&line, &len, append)) != -1){
+		fprintf(appended, "%s", line);
+	}
+
+	fclose(appended);
+	fclose(append);
+	remove(file_name);
+	rename("append.swp", file_name);
+}
+
+
+void remover_item(Lista* list){
 	
-	int opcao = selecionar_tarefa(list);
+	int opcao = selecionar_item(list);
 	if(opcao == -1){
 		return;
 	}
@@ -179,23 +205,43 @@ void remover_tarefa(Lista* list){
 	char* line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	int tarefa = -1;
+	int item = -1;
+	int tarefa = 0;
+
+	int in_task = 0;
+	int in_detail = 0;
+	char selected_type = 'a';
+
+	char cabecalho[100];
 	
 	getline(&line, &len, list->file);	
-	fprintf(out, "%s %d\n", list->nome, --list->tamanho);
 
 	while((read = getline(&line, &len, list->file)) != -1){
-		if(line[0] == '\t' && line[1] == '['){
-			tarefa++;
-		}
-		if(tarefa == opcao){
+		in_task = (line[0] == '\t' && line[1] == '[');
+		
+		item++; //nao tem linhas vazias
+
+		if(item == opcao){
+			list->tamanho--;
+			list->tasks -= in_task;
+			selected_type = in_task ? 't' : 'd';
 			continue;
 		}
+	
+		selected_type = (selected_type == 't' && in_task) ? 'a' : selected_type;
+
+		if(selected_type == 't'){
+			list->tamanho--;
+			continue;	
+		}
+
 		fprintf(out, "%s", line);
 	}
 
 	fclose(list->file);
 	fclose(out);
+	snprintf(cabecalho, sizeof(cabecalho), "%s %d %d", list->nome, list->tasks, list->tamanho);
+	append_on_file(cabecalho, "out.swp");
 	remove(list->nome);
 	rename("out.swp", list->nome);
 	list->file = fopen(list->nome, "r+");
@@ -210,7 +256,7 @@ int selecionar_tarefa(Lista* list){
 	char close_message;
 
 	clear();
-	if(list->tamanho == 0){
+	if(list->tasks == 0){
 		printw("Não há tarefas disponíveis, experimente criar uma.\n");
 		refresh();
 		do{ close_message = getch(); } while(close_message != 'q');
@@ -218,7 +264,7 @@ int selecionar_tarefa(Lista* list){
 	}
 
 	printw("Selecione a tarefa e pressione [ENTER].\n");
-	escrever_tarefas(list, opcao);
+	escrever_tarefas(list, opcao, 0);
 	noecho();
 	do{	
 		acao = getch();
@@ -227,8 +273,42 @@ int selecionar_tarefa(Lista* list){
 		if(acao == 'q'){
 			break;
 		}
+		opcao = mover_cursor(acao, opcao, list->tasks);
+		escrever_tarefas(list, opcao, 0);
+	} while(acao != '\n');
+	echo();
+	refresh();
+	
+	return (acao == '\n' ? opcao : -1);
+}
+
+
+int selecionar_item(Lista* list){
+
+	char acao;
+	int opcao = 0;
+	char close_message;
+
+	clear();
+	if(list->tasks == 0){
+		printw("Não há tarefas disponíveis, experimente criar uma.\n");
+		refresh();
+		do{ close_message = getch(); } while(close_message != 'q');
+		return -1;
+	}
+
+	printw("Selecione o item e pressione [ENTER].\n");
+	escrever_tarefas(list, opcao, 1);
+	noecho();
+	do{	
+		acao = getch();
+		clear();
+		printw("Selecione o item e pressione [ENTER].\n");
+		if(acao == 'q'){
+			break;
+		}
 		opcao = mover_cursor(acao, opcao, list->tamanho);
-		escrever_tarefas(list, opcao);
+		escrever_tarefas(list, opcao, 1);
 	} while(acao != '\n');
 	echo();
 	refresh();
@@ -269,30 +349,27 @@ void escrever_tarefa(Lista* list, int number){
 }
 
 
-void escrever_tarefas(Lista* list, int selected){
+void escrever_tarefas(Lista* list, int selected, int include_details){
 
 	char* line = NULL;
 	size_t len = 0;
 	ssize_t read;
-	int current_task = -1;
+	int current_item = -1;
 	int written = 0;
 	int x,y;
 
 	read = getline(&line, &len, list->file); // lê o titulo
 	while((read = getline(&line, &len, list->file)) != -1){
-		if(line[0] == '\t' && line[1] == '['){
-			current_task++;
+		if(line[0] == '\t' && ((line[1] == '[') || (line[1] == '\t' && include_details))){
+			current_item++;
 		}
 		printw("%s", line);	
-		if((current_task == selected) && !written){
+		if((current_item == selected) && !written){
 			getyx(stdscr, y, x);
 			mvaddch(y-1, 65, '<');
 			addch('\n');
 			written = 1;
 		}
-	}
-	if(selected > current_task){
-		selected = current_task;
 	}
 	rewind(list->file);
 }
@@ -322,6 +399,9 @@ void adicionar_detalhe(Lista* list){
 	refresh();
 	getstr(detail_str);
 	strcat(detail, detail_str);
+	read = getline(&line, &len, list->file); //titulo
+	list->tamanho++;
+	fprintf(out, "%s %d %d\n", list->nome, list->tasks, list->tamanho);
 	while((read = getline(&line, &len, list->file)) != -1){
 		if(line[0] == '\t' && line[1] == '['){
 			current_task++;
